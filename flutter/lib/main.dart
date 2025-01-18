@@ -32,17 +32,19 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _localRenderer = RTCVideoRenderer();
+  MediaStream? _localStream;
+  bool _isStreaming = false;
 
   @override
   void initState() {
     super.initState();
     initRenderers();
-    _startVideo();
   }
 
   @override
   void dispose() {
     _localRenderer.dispose();
+    _localStream?.dispose();
     super.dispose();
   }
 
@@ -50,20 +52,34 @@ class _MyHomePageState extends State<MyHomePage> {
     await _localRenderer.initialize();
   }
 
-  Future<void> _startVideo() async {
-    final mediaConstraints = {
-      'audio': false,
-      'video': {
-        'facingMode': 'user',
-      },
-    };
+  Future<void> _toggleVideo() async {
+    if (_isStreaming) {
+      _localStream?.getTracks().forEach((track) {
+        track.stop();
+      });
+      _localRenderer.srcObject = null;
+      setState(() {
+        _isStreaming = false;
+      });
+    } else {
+      final mediaConstraints = {
+        'audio': true,
+        'video': {
+          'facingMode': 'user',
+        },
+      };
 
-    try {
-      final stream =
-          await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      _localRenderer.srcObject = stream;
-    } catch (e) {
-      print('Error: $e');
+      try {
+        final stream =
+            await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        _localRenderer.srcObject = stream;
+        _localStream = stream;
+        setState(() {
+          _isStreaming = true;
+        });
+      } catch (e) {
+        print('Error: $e');
+      }
     }
   }
 
@@ -74,7 +90,25 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: RTCVideoView(_localRenderer),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 300,
+              height: 200,
+              child: RTCVideoView(_localRenderer),
+            ),
+            Positioned(
+              top: 20,
+              child: ElevatedButton(
+                onPressed: _toggleVideo,
+                child: Text(_isStreaming
+                    ? 'Stop Video and Audio'
+                    : 'Start Video and Audio'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
