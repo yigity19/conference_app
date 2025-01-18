@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'rtc_helper.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,6 +35,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final _localRenderer = RTCVideoRenderer();
   MediaStream? _localStream;
   bool _isStreaming = false;
+  final RTCHelper _rtcHelper = RTCHelper();
 
   @override
   void initState() {
@@ -45,6 +47,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void dispose() {
     _localRenderer.dispose();
     _localStream?.dispose();
+    _rtcHelper.dispose();
     super.dispose();
   }
 
@@ -74,6 +77,12 @@ class _MyHomePageState extends State<MyHomePage> {
             await navigator.mediaDevices.getUserMedia(mediaConstraints);
         _localRenderer.srcObject = stream;
         _localStream = stream;
+
+        await _rtcHelper.initializePeerConnection();
+        _rtcHelper.peerConnection?.onIceCandidate = (candidate) {
+          print('New ICE candidate: ${candidate.candidate}');
+        };
+
         setState(() {
           _isStreaming = true;
         });
