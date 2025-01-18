@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 class RTCHelper {
@@ -25,9 +24,32 @@ class RTCHelper {
     }
   }
 
+  /// Creates an SDP offer and sets it as the local description
+  Future<RTCSessionDescription?> createOffer() async {
+    if (_peerConnection == null) {
+      print('Peer connection is not initialized');
+      return null;
+    }
+
+    try {
+      RTCSessionDescription offer = await _peerConnection!.createOffer();
+      await _peerConnection!.setLocalDescription(offer);
+      print('Created offer: ${offer.sdp}');
+      return offer;
+    } catch (e) {
+      print('Failed to create offer: $e');
+      return null;
+    }
+  }
+
+  Future<void> createAnswer() async {
+    final answer = await peerConnection?.createAnswer();
+
+    await peerConnection?.setLocalDescription(answer!);
+  }
+
   /// Getter for the peer connection
   RTCPeerConnection? get peerConnection => _peerConnection;
-  
 
   /// Closes the peer connection and cleans up resources
   Future<void> dispose() async {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:convert';
 import 'rtc_helper.dart';
 
 void main() {
@@ -36,11 +38,13 @@ class _MyHomePageState extends State<MyHomePage> {
   MediaStream? _localStream;
   bool _isStreaming = false;
   final RTCHelper _rtcHelper = RTCHelper();
+  late WebSocketChannel _channel;
 
   @override
   void initState() {
     super.initState();
     initRenderers();
+    _connectToSignalingServer();
   }
 
   @override
@@ -48,11 +52,42 @@ class _MyHomePageState extends State<MyHomePage> {
     _localRenderer.dispose();
     _localStream?.dispose();
     _rtcHelper.dispose();
+    _channel.sink.close();
     super.dispose();
   }
 
   Future<void> initRenderers() async {
     await _localRenderer.initialize();
+  }
+
+  void _connectToSignalingServer() {
+    _channel = WebSocketChannel.connect(Uri.parse('ws://localhost:8181'));
+
+    _channel.stream.listen((message) {
+      final data = jsonDecode(message);
+      switch (data['type']) {
+        case 'offer':
+          _rtcHelper.peerConnection?.setRemoteDescription(
+            RTCSessionDescription(data['sdp'], data['type']),
+          );
+          _rtcHelper.createAnswer();
+          break;
+        case 'answer':
+          _rtcHelper.peerConnection?.setRemoteDescription(
+            RTCSessionDescription(data['sdp'], data['type']),
+          );
+          break;
+        case 'candidate':
+          _rtcHelper.peerConnection?.addCandidate(
+            RTCIceCandidate(
+              data['candidate'],
+              data['sdpMid'],
+              data['sdpMLineIndex'],
+            ),
+          );
+          break;
+      }
+    });
   }
 
   Future<void> _toggleVideo() async {
@@ -80,8 +115,24 @@ class _MyHomePageState extends State<MyHomePage> {
 
         await _rtcHelper.initializePeerConnection();
         _rtcHelper.peerConnection?.onIceCandidate = (candidate) {
-          print('New ICE candidate: ${candidate.candidate}');
+          final candidateData = {
+            'type': 'candidate',
+            'candidate': candidate.candidate,
+            'sdpMid': candidate.sdpMid,
+            'sdpMLineIndex': candidate.sdpMLineIndex,
+          };
+          _channel.sink.add(jsonEncode(candidateData));
         };
+
+        _rtcHelper.createOffer().then((offer) {
+          if (offer != null) {
+            final offerData = {
+              'type': 'offer',
+              'sdp': offer.sdp,
+            };
+            _channel.sink.add(jsonEncode(offerData));
+          }
+        });
 
         setState(() {
           _isStreaming = true;
@@ -102,7 +153,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Container(
+            SizedBox(
               width: 300,
               height: 200,
               child: RTCVideoView(_localRenderer),
