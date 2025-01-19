@@ -4,10 +4,13 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'rtc_helper.dart';
 
+/// The main entry point of the Flutter application.
+
 void main() {
   runApp(const MyApp());
 }
 
+/// The root widget of the application.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -24,6 +27,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+/// The home page of the application.
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
@@ -34,10 +38,19 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  /// Renderer for displaying the local video stream.
   final _localRenderer = RTCVideoRenderer();
+
+  /// The local media stream.
   MediaStream? _localStream;
+
+  /// Flag indicating whether streaming is active.
   bool _isStreaming = false;
+
+  /// Helper class for managing WebRTC connections.
   final RTCHelper _rtcHelper = RTCHelper();
+
+  /// WebSocket channel for signaling.
   late WebSocketChannel _channel;
 
   @override
@@ -56,10 +69,12 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  /// Initializes the video renderer.
   Future<void> initRenderers() async {
     await _localRenderer.initialize();
   }
 
+  /// Connects to the signaling server via WebSocket.
   void _connectToSignalingServer() {
     _channel = WebSocketChannel.connect(Uri.parse('ws://localhost:8181'));
 
@@ -90,7 +105,8 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _toggleVideo() async {
+  /// Toggles the video stream on and off.
+  Future<void> _MakeCall() async {
     if (_isStreaming) {
       _localStream?.getTracks().forEach((track) {
         track.stop();
@@ -124,15 +140,14 @@ class _MyHomePageState extends State<MyHomePage> {
           _channel.sink.add(jsonEncode(candidateData));
         };
 
-        _rtcHelper.createOffer().then((offer) {
-          if (offer != null) {
-            final offerData = {
-              'type': 'offer',
-              'sdp': offer.sdp,
-            };
-            _channel.sink.add(jsonEncode(offerData));
-          }
-        });
+        final offer = await _rtcHelper.createOffer();
+        if (offer != null) {
+          final offerData = {
+            'type': 'newOffer',
+            'sdp': offer.sdp,
+          };
+          _channel.sink.add(jsonEncode(offerData));
+        }
 
         setState(() {
           _isStreaming = true;
@@ -154,14 +169,14 @@ class _MyHomePageState extends State<MyHomePage> {
           alignment: Alignment.center,
           children: [
             SizedBox(
-              width: 300,
-              height: 200,
+              width: 600,
+              height: 400,
               child: RTCVideoView(_localRenderer),
             ),
             Positioned(
-              top: 20,
+              top: 100,
               child: ElevatedButton(
-                onPressed: _toggleVideo,
+                onPressed: _MakeCall,
                 child: Text(_isStreaming
                     ? 'Stop Video and Audio'
                     : 'Start Video and Audio'),

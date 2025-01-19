@@ -13,6 +13,10 @@ async def handler(websocket, path):
             data = json.loads(message)
             print(f"Received message: {data}")
 
+            # Handle the offer based on the tag
+            if data['type'] == 'newOffer' and data.get('tag') == 'unique_offer_tag':
+                print("Handling unique offer")
+
             # Broadcast the message to all connected clients except the sender
             for client in connected_clients:
                 if client != websocket:
