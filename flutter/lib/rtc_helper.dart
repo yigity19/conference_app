@@ -42,10 +42,21 @@ class RTCHelper {
     }
   }
 
-  Future<void> createAnswer() async {
-    final answer = await peerConnection?.createAnswer();
+  Future<RTCSessionDescription?> createAnswer() async {
+    if (_peerConnection == null) {
+      print('Peer connection is not initialized');
+      return null;
+    }
 
-    await peerConnection?.setLocalDescription(answer!);
+    try {
+      RTCSessionDescription answer = await _peerConnection!.createAnswer();
+      await _peerConnection!.setLocalDescription(answer);
+      print('Created answer: ${answer.sdp}');
+      return answer;
+    } catch (e) {
+      print('Failed to create answer: $e');
+      return null;
+    }
   }
 
   /// Getter for the peer connection

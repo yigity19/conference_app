@@ -44,6 +44,8 @@ class _MyHomePageState extends State<MyHomePage> {
   late WebSocketChannel _channel;
   final String _username = "user1" + Random().nextInt(100).toString();
   final String _password = "password";
+  bool _isNewOfferAwaiting = false;
+  String _incomingOffer = "";
 
   @override
   void initState() {
@@ -85,19 +87,17 @@ class _MyHomePageState extends State<MyHomePage> {
     _channel.stream.listen((message) {
       final data = jsonDecode(message);
       switch (data['type']) {
-        case 'offer':
+        case 'newOffer':
           _rtcHelper.peerConnection?.setRemoteDescription(
             RTCSessionDescription(data['sdp'], data['type']),
           );
           _rtcHelper.createAnswer();
           break;
         case 'newOfferAwaiting':
-          // _rtcHelper.peerConnection?.setRemoteDescription(
-          //   RTCSessionDescription(data['sdp'], data['type']),
-          // );
-          // _rtcHelper.createAnswer();
-          break;
-          print("newOfferAwaiting!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          setState(() {
+            _isNewOfferAwaiting = true;
+          });
+          _incomingOffer = message;
           break;
         case 'answer':
           _rtcHelper.peerConnection?.setRemoteDescription(
@@ -162,7 +162,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (offer != null) {
           final offerData = {
             'type': 'newOffer',
-            "offererUserName": "user1",
+            "offererUserName": _username,
             'sdp': offer.sdp,
           };
           _channel.sink.add(jsonEncode(offerData));
@@ -175,6 +175,28 @@ class _MyHomePageState extends State<MyHomePage> {
         print('Error: $e');
       }
     }
+  }
+
+  void _handleNewOfferAwaiting() {
+    // Handle the new offer awaiting action here
+    setState(() {
+      _isNewOfferAwaiting = false;
+    });
+
+    _rtcHelper.createAnswer().then((answer) {
+      final responseData = jsonDecode(_incomingOffer);
+
+      if (answer != null) {
+        final answerData = {
+          'type': 'newAnswer',
+          "answererUserName": _username,
+          "toWhome": responseData['offererUserName'],
+          'answerSDP': answer.sdp,
+        };
+
+        _channel.sink.add(responseData);
+      }
+    });
   }
 
   @override
@@ -195,6 +217,13 @@ class _MyHomePageState extends State<MyHomePage> {
                       ? 'Stop Video and Audio'
                       : 'Start Video and Audio'),
                 ),
+                if (_isNewOfferAwaiting) ...[
+                  SizedBox(height: 10), // Add spacing between buttons
+                  ElevatedButton(
+                    onPressed: _handleNewOfferAwaiting,
+                    child: Text('Handle New Offer Awaiting'),
+                  ),
+                ],
               ],
             ),
             SizedBox(width: 20), // Add spacing between buttons and video views

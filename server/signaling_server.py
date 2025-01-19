@@ -17,6 +17,19 @@ async def handler(websocket):
             if data['type'] == 'auth':
                 print("Handling auth")
                 dictConnectedSockets[data['userName']] = websocket
+                if(len(listOffers) > 0):
+                    print("Sending offers to new client")
+                    for offer in listOffers:
+                        if offer["offererUserName"] != data['userName']:
+                            await websocket.send(json.dumps({
+                                "type": "newOfferAwaiting",
+                                "offererUserName": offer["offererUserName"],
+                                "sdp": offer["sdp"],
+                                "offerIceCandidates": offer["offerIceCandidates"],
+                                "answererUserName": None,
+                                "answer": None,
+                                "answererIceCandidates": []
+                            }))
 
 
             # Handle the offer based on the tag
@@ -36,15 +49,28 @@ async def handler(websocket):
                         await dictConnectedSockets[clientName].send(json.dumps({
                             "type": "newOfferAwaiting",
                             "offererUserName": data["offererUserName"],
-                            "sdp": data["sdp"]
+                            "sdp": data["sdp"],
+                            "offerIceCandidates": [],
+                            "answererUserName": None,
+                            "answer": None,
+                            "answererIceCandidates": []
                         }))
             elif data['type'] == 'newAnswer':
                 print("Handling unique answer")
+                nCounter = 0
+                for offer in listOffers:
+                    if data["toWhome"] == offer["offererUserName"]:
+                        strOffererName = data["toWhome"]
+                        listOffers[nCounter]["answererUserName"] = data["answererUserName"]
+                        listOffers[nCounter]["answer"] = data["answerSDP"]
+                        print("Found offer")
+                        dictConnectedSockets[offer["offererUserName"]].send
+                    nCounter += 1
 
             # Broadcast the message to all connected clients except the sender
-            for clientName in dictConnectedSockets.keys():
-                if dictConnectedSockets[clientName] != websocket:
-                    await dictConnectedSockets[clientName].send(message)
+            # for clientName in dictConnectedSockets.keys():
+            #     if dictConnectedSockets[clientName] != websocket:
+            #         await dictConnectedSockets[clientName].send(message)
     except websockets.ConnectionClosed:
         print("Client disconnected")
     finally:
