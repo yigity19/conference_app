@@ -77,6 +77,13 @@ class _MyHomePageState extends State<MyHomePage> {
           );
           _rtcHelper.createAnswer();
           break;
+        case 'newOfferAwaiting':
+          // _rtcHelper.peerConnection?.setRemoteDescription(
+          //   RTCSessionDescription(data['sdp'], data['type']),
+          // );
+          // _rtcHelper.createAnswer();
+          print("newOfferAwaiting!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          break;
         case 'answer':
           _rtcHelper.peerConnection?.setRemoteDescription(
             RTCSessionDescription(data['sdp'], data['type']),
@@ -139,9 +146,9 @@ class _MyHomePageState extends State<MyHomePage> {
         final offer = await _rtcHelper.createOffer();
         if (offer != null) {
           final offerData = {
-            'type': 'offer',
+            'type': 'newOffer',
+            "offererUserName": "user1",
             'sdp': offer.sdp,
-            'tag': 'unique_offer_tag', // Add a unique tag here
           };
           _channel.sink.add(jsonEncode(offerData));
         }
@@ -188,7 +195,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   width: 300,
                   height: 200,
                   decoration: BoxDecoration(
-                    color: _remoteRenderer.srcObject == null ? Colors.black : Colors.transparent,
+                    color: _remoteRenderer.srcObject == null
+                        ? Colors.black
+                        : Colors.transparent,
                   ),
                   child: RTCVideoView(_remoteRenderer),
                 ),
