@@ -96,9 +96,6 @@ class _MyHomePageState extends State<MyHomePage> {
           //   RTCSessionDescription(data['sdp'], data['type']),
           // );
           // _rtcHelper.createAnswer();
-          setState(() {
-            _isCallAvailable = true;
-          });
           break;
           print("newOfferAwaiting!!!!!!!!!!!!!!!!!!!!!!!!!!!");
           break;
