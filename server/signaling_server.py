@@ -24,10 +24,12 @@ async def handler(websocket):
                             await websocket.send(json.dumps({
                                 "type": "newOfferAwaiting",
                                 "offererUserName": offer["offererUserName"],
-                                "sdp": offer["sdp"],
+                                "offerSDP": offer["offerSDP"],
+                                "offerType": offer["offerType"],
                                 "offerIceCandidates": offer["offerIceCandidates"],
                                 "answererUserName": None,
-                                "answer": None,
+                                "answerType": None,
+                                "answerSDP": None,
                                 "answererIceCandidates": []
                             }))
 
@@ -36,10 +38,12 @@ async def handler(websocket):
             elif data['type'] == 'newOffer':
                 print("Handling unique offer")
                 listOffers.append({"offererUserName" : data["offererUserName"],
-                                   "sdp" : data["sdp"],
+                                   "offerSDP" : data["offerSDP"],
+                                   "offerType" : data["offerType"],
                                    "offerIceCandidates": [],
                                    "answererUserName": None,
-                                   "answer": None,
+                                   "answerType": None,
+                                   "answerSDP": None,
                                    "answererIceCandidates": []
                                    })
                 # Send the new offer to all connected clients except the sender
@@ -49,22 +53,30 @@ async def handler(websocket):
                         await dictConnectedSockets[clientName].send(json.dumps({
                             "type": "newOfferAwaiting",
                             "offererUserName": data["offererUserName"],
-                            "sdp": data["sdp"],
+                            "offerSDP": data["offerSDP"],
+                            "offerType": data["offerType"],
                             "offerIceCandidates": [],
                             "answererUserName": None,
                             "answer": None,
                             "answererIceCandidates": []
                         }))
             elif data['type'] == 'newAnswer':
-                print("Handling unique answer")
+                print("Handling unique answer!!!!!!!!!!!!!!!!!!!!!")
                 nCounter = 0
                 for offer in listOffers:
                     if data["toWhome"] == offer["offererUserName"]:
-                        strOffererName = data["toWhome"]
+                        # toSend = dict()
+                        # toSend["type"] = "answerResponse"
+                        # toSend["answererUserName"] = data["answererUserName"]
+                        # toSend["answerSDP"] = data["answerSDP"]
+                        # toSend["answerType"] = data["answerType"]
+                        # toSend["offererUserName"] = data["toWhome"]
+                        listOffers[nCounter]["type"] = "answerResponse"
                         listOffers[nCounter]["answererUserName"] = data["answererUserName"]
-                        listOffers[nCounter]["answer"] = data["answerSDP"]
+                        listOffers[nCounter]["answerSDP"] = data["answerSDP"]
+                        listOffers[nCounter]["answerType"] = data["answerType"]
                         print("Found offer")
-                        dictConnectedSockets[offer["offererUserName"]].send
+                        await dictConnectedSockets[offer["offererUserName"]].send(json.dumps(listOffers[nCounter]))
                     nCounter += 1
 
             # Broadcast the message to all connected clients except the sender

@@ -44,6 +44,8 @@ class _MyHomePageState extends State<MyHomePage> {
   late WebSocketChannel _channel;
   final String _username = "user1" + Random().nextInt(100).toString();
   final String _password = "password";
+  RTCSessionDescription? _offer;
+
   bool _isNewOfferAwaiting = false;
   String _incomingOffer = "";
 
@@ -89,7 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
       switch (data['type']) {
         case 'newOffer':
           _rtcHelper.peerConnection?.setRemoteDescription(
-            RTCSessionDescription(data['sdp'], data['type']),
+            RTCSessionDescription(data['offerSDP'], data['offerType']),
           );
           _rtcHelper.createAnswer();
           break;
@@ -98,10 +100,14 @@ class _MyHomePageState extends State<MyHomePage> {
             _isNewOfferAwaiting = true;
           });
           _incomingOffer = message;
-          break;
-        case 'answer':
+          print('New offer awaiting: $message');
+          _offer = RTCSessionDescription(data['offerSDP'], data['offerType']);
+
+          break;f
+        case "answerResponse":
+          print('Answer response !!!!!!!!!!!!!!!!!!!');
           _rtcHelper.peerConnection?.setRemoteDescription(
-            RTCSessionDescription(data['sdp'], data['type']),
+            RTCSessionDescription(data['answerSDP'], data['answerType']),
           );
           break;
         case 'candidate':
@@ -141,7 +147,9 @@ class _MyHomePageState extends State<MyHomePage> {
         _localRenderer.srcObject = stream;
         _localStream = stream;
 
-        await _rtcHelper.initializePeerConnection();
+        await _rtcHelper.initializePeerConnection(null);
+
+        _rtcHelper.peerConnection?.addStream(_localStream!);
         _rtcHelper.peerConnection?.onIceCandidate = (candidate) {
           final candidateData = {
             'type': 'candidate',
@@ -163,7 +171,8 @@ class _MyHomePageState extends State<MyHomePage> {
           final offerData = {
             'type': 'newOffer',
             "offererUserName": _username,
-            'sdp': offer.sdp,
+            "offerType": offer.type,
+            'offerSDP': offer.sdp,
           };
           _channel.sink.add(jsonEncode(offerData));
         }
@@ -177,26 +186,42 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _handleNewOfferAwaiting() {
+  Future<void> _handleNewOfferAwaiting() async {
     // Handle the new offer awaiting action here
     setState(() {
       _isNewOfferAwaiting = false;
     });
 
-    _rtcHelper.createAnswer().then((answer) {
-      final responseData = jsonDecode(_incomingOffer);
+    final mediaConstraints = {
+      'audio': true,
+      'video': {
+        'facingMode': 'user',
+      },
+    };
 
-      if (answer != null) {
-        final answerData = {
-          'type': 'newAnswer',
-          "answererUserName": _username,
-          "toWhome": responseData['offererUserName'],
-          'answerSDP': answer.sdp,
-        };
+    try {
+      // await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      print('Handling new offer awaiting: $_incomingOffer');
+      await _rtcHelper.initializePeerConnection(_offer);
+      // _rtcHelper.peerConnection?.addStream(_localStream!);
+      _rtcHelper.createAnswer().then((answer) {
+        final responseData = jsonDecode(_incomingOffer);
 
-        _channel.sink.add(responseData);
-      }
-    });
+        if (answer != null) {
+          final answerData = {
+            'type': 'newAnswer',
+            "answererUserName": _username,
+            "toWhome": responseData['offererUserName'],
+            "answerType": answer.type,
+            'answerSDP': answer.sdp,
+          };
+          // _rtcHelper.peerConnection?.setLocalDescription(answer);
+          _channel.sink.add(jsonEncode(answerData));
+        }
+      });
+    } catch (e) {
+      print('Error: $e');
+    }
   }
 
   @override
@@ -214,8 +239,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 ElevatedButton(
                   onPressed: _toggleVideo,
                   child: Text(_isStreaming
-                      ? 'Stop Video and Audio'
-                      : 'Start Video and Audio'),
+                      ? 'Stop the Video Call'
+                      : 'Start a Video Call'),
                 ),
                 if (_isNewOfferAwaiting) ...[
                   SizedBox(height: 10), // Add spacing between buttons
