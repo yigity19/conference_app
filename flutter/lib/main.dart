@@ -4,13 +4,10 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'rtc_helper.dart';
 
-/// The main entry point of the Flutter application.
-
 void main() {
   runApp(const MyApp());
 }
 
-/// The root widget of the application.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -27,7 +24,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// The home page of the application.
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
@@ -38,19 +34,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  /// Renderer for displaying the local video stream.
   final _localRenderer = RTCVideoRenderer();
-
-  /// The local media stream.
+  final _remoteRenderer = RTCVideoRenderer();
   MediaStream? _localStream;
-
-  /// Flag indicating whether streaming is active.
   bool _isStreaming = false;
-
-  /// Helper class for managing WebRTC connections.
   final RTCHelper _rtcHelper = RTCHelper();
-
-  /// WebSocket channel for signaling.
   late WebSocketChannel _channel;
 
   @override
@@ -63,6 +51,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void dispose() {
     _localRenderer.dispose();
+    _remoteRenderer.dispose();
     _localStream?.dispose();
     _rtcHelper.dispose();
     _channel.sink.close();
@@ -72,6 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
   /// Initializes the video renderer.
   Future<void> initRenderers() async {
     await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
   }
 
   /// Connects to the signaling server via WebSocket.
@@ -105,13 +95,13 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  /// Toggles the video stream on and off.
-  Future<void> _MakeCall() async {
+  Future<void> _toggleVideo() async {
     if (_isStreaming) {
       _localStream?.getTracks().forEach((track) {
         track.stop();
       });
       _localRenderer.srcObject = null;
+      _remoteRenderer.srcObject = null;
       setState(() {
         _isStreaming = false;
       });
@@ -140,11 +130,18 @@ class _MyHomePageState extends State<MyHomePage> {
           _channel.sink.add(jsonEncode(candidateData));
         };
 
+        _rtcHelper.peerConnection?.onTrack = (event) {
+          if (event.track.kind == 'video') {
+            _remoteRenderer.srcObject = event.streams[0];
+          }
+        };
+
         final offer = await _rtcHelper.createOffer();
         if (offer != null) {
           final offerData = {
-            'type': 'newOffer',
+            'type': 'offer',
             'sdp': offer.sdp,
+            'tag': 'unique_offer_tag', // Add a unique tag here
           };
           _channel.sink.add(jsonEncode(offerData));
         }
@@ -165,22 +162,37 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Stack(
-          alignment: Alignment.center,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 600,
-              height: 400,
-              child: RTCVideoView(_localRenderer),
+            Column(
+              children: [
+                ElevatedButton(
+                  onPressed: _toggleVideo,
+                  child: Text(_isStreaming
+                      ? 'Stop Video and Audio'
+                      : 'Start Video and Audio'),
+                ),
+              ],
             ),
-            Positioned(
-              top: 100,
-              child: ElevatedButton(
-                onPressed: _MakeCall,
-                child: Text(_isStreaming
-                    ? 'Stop Video and Audio'
-                    : 'Start Video and Audio'),
-              ),
+            SizedBox(width: 20), // Add spacing between buttons and video views
+            Column(
+              children: [
+                Container(
+                  width: 300,
+                  height: 200,
+                  child: RTCVideoView(_localRenderer),
+                ),
+                SizedBox(height: 200), // Add spacing of 200 pixels
+                Container(
+                  width: 300,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: _remoteRenderer.srcObject == null ? Colors.black : Colors.transparent,
+                  ),
+                  child: RTCVideoView(_remoteRenderer),
+                ),
+              ],
             ),
           ],
         ),
