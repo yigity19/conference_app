@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -40,6 +42,8 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isStreaming = false;
   final RTCHelper _rtcHelper = RTCHelper();
   late WebSocketChannel _channel;
+  final String _username = "user1" + Random().nextInt(100).toString();
+  final String _password = "password";
 
   @override
   void initState() {
@@ -66,7 +70,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// Connects to the signaling server via WebSocket.
   void _connectToSignalingServer() {
+    // Encode credentials as JSON
+    final authData = jsonEncode({
+      "type": "auth",
+      'userName': _username,
+      'password': _password,
+    });
+
     _channel = WebSocketChannel.connect(Uri.parse('ws://localhost:8181'));
+
+    // Send authentication data after connection is established
+    _channel.sink.add(authData);
 
     _channel.stream.listen((message) {
       final data = jsonDecode(message);
@@ -82,6 +96,10 @@ class _MyHomePageState extends State<MyHomePage> {
           //   RTCSessionDescription(data['sdp'], data['type']),
           // );
           // _rtcHelper.createAnswer();
+          setState(() {
+            _isCallAvailable = true;
+          });
+          break;
           print("newOfferAwaiting!!!!!!!!!!!!!!!!!!!!!!!!!!!");
           break;
         case 'answer':
