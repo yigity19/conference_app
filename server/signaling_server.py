@@ -64,6 +64,7 @@ async def handler(websocket):
                 nCounter = 0
                 for offer in listOffers:
                     if data["toWhome"] == offer["offererUserName"]:
+                        print("added answer to offer")
                         # toSend = dict()
                         # toSend["type"] = "answerResponse"
                         # toSend["answererUserName"] = data["answererUserName"]

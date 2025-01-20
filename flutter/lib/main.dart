@@ -106,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
           final iceCandidateData = {
             'type': 'sendIceCandidateToSignalingServer',
             "iceUserName": _username,
-            "isOfferer": false,
+            "isOfferer": true,
             'icecandidate': data['candidate'],
             'sdpMid': data['sdpMid'],
             'sdpMLineIndex': data['sdpMLineIndex'],
@@ -178,7 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
           final candidateData = {
             'type': 'sendIceCandidateToSignalingServer',
             "iceUserName": _username,
-            "isOfferer": _didIOffer,
+            "isOfferer": true,
             'icecandidate': candidate.candidate,
             'sdpMid': candidate.sdpMid,
             'sdpMLineIndex': candidate.sdpMLineIndex,
