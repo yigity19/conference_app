@@ -45,6 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final String _username = "user1" + Random().nextInt(100).toString();
   final String _password = "password";
   RTCSessionDescription? _offer;
+  bool _didIOffer = false;
 
   bool _isNewOfferAwaiting = false;
   String _incomingOffer = "";
@@ -89,28 +90,42 @@ class _MyHomePageState extends State<MyHomePage> {
     _channel.stream.listen((message) {
       final data = jsonDecode(message);
       switch (data['type']) {
-        case 'newOffer':
-          _rtcHelper.peerConnection?.setRemoteDescription(
-            RTCSessionDescription(data['offerSDP'], data['offerType']),
-          );
-          _rtcHelper.createAnswer();
-          break;
         case 'newOfferAwaiting':
           setState(() {
             _isNewOfferAwaiting = true;
           });
           _incomingOffer = message;
-          print('New offer awaiting: $message');
+          print('New offer awaiting:');
           _offer = RTCSessionDescription(data['offerSDP'], data['offerType']);
-
-          break;f
+          break;
         case "answerResponse":
           print('Answer response !!!!!!!!!!!!!!!!!!!');
           _rtcHelper.peerConnection?.setRemoteDescription(
             RTCSessionDescription(data['answerSDP'], data['answerType']),
           );
+          final iceCandidateData = {
+            'type': 'sendIceCandidateToSignalingServer',
+            "iceUserName": _username,
+            "isOfferer": false,
+            'icecandidate': data['candidate'],
+            'sdpMid': data['sdpMid'],
+            'sdpMLineIndex': data['sdpMLineIndex'],
+          };
+          _channel.sink.add(jsonEncode(iceCandidateData));
+          break;
+        case "receivedIceCandidateFromServer":
+          print(
+              'Response to answerer ice candidates request !!!!!!!!!!!!!!!!!!!');
+          _rtcHelper.peerConnection?.addCandidate(
+            RTCIceCandidate(
+              data['icecandidate'],
+              data['sdpMid'],
+              data['sdpMLineIndex'],
+            ),
+          );
           break;
         case 'candidate':
+          print("======Adding ICE candidate======");
           _rtcHelper.peerConnection?.addCandidate(
             RTCIceCandidate(
               data['candidate'],
@@ -118,6 +133,15 @@ class _MyHomePageState extends State<MyHomePage> {
               data['sdpMLineIndex'],
             ),
           );
+          final iceCandidateData = {
+            'type': 'sendIceCandidateToSignalingServer',
+            "iceUserName": _username,
+            "isOfferer": _didIOffer,
+            'icecandidate': data['candidate'],
+            'sdpMid': data['sdpMid'],
+            'sdpMLineIndex': data['sdpMLineIndex'],
+          };
+          _channel.sink.add(jsonEncode(iceCandidateData));
           break;
       }
     });
@@ -152,8 +176,10 @@ class _MyHomePageState extends State<MyHomePage> {
         _rtcHelper.peerConnection?.addStream(_localStream!);
         _rtcHelper.peerConnection?.onIceCandidate = (candidate) {
           final candidateData = {
-            'type': 'candidate',
-            'candidate': candidate.candidate,
+            'type': 'sendIceCandidateToSignalingServer',
+            "iceUserName": _username,
+            "isOfferer": _didIOffer,
+            'icecandidate': candidate.candidate,
             'sdpMid': candidate.sdpMid,
             'sdpMLineIndex': candidate.sdpMLineIndex,
           };
@@ -165,7 +191,7 @@ class _MyHomePageState extends State<MyHomePage> {
             _remoteRenderer.srcObject = event.streams[0];
           }
         };
-
+        _didIOffer = true;
         final offer = await _rtcHelper.createOffer();
         if (offer != null) {
           final offerData = {
@@ -201,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     try {
       // await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      print('Handling new offer awaiting: $_incomingOffer');
+      print('Handling new offer awaiting:');
       await _rtcHelper.initializePeerConnection(_offer);
       // _rtcHelper.peerConnection?.addStream(_localStream!);
       _rtcHelper.createAnswer().then((answer) {
@@ -216,6 +242,15 @@ class _MyHomePageState extends State<MyHomePage> {
             'answerSDP': answer.sdp,
           };
           // _rtcHelper.peerConnection?.setLocalDescription(answer);
+          final answerDataRequestIceCandidates = {
+            'type': 'newAnswerReqeustIceCandidates',
+            "answererUserName": _username,
+            "toWhome": responseData['offererUserName'],
+            "answerType": answer.type,
+            'answerSDP': answer.sdp,
+          };
+          _channel.sink.add(jsonEncode(answerDataRequestIceCandidates));
+
           _channel.sink.add(jsonEncode(answerData));
         }
       });

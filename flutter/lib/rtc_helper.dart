@@ -15,9 +15,7 @@ class RTCHelper {
 
     try {
       _peerConnection = await createPeerConnection(configuration);
-      _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
-        print('New ICE candidate: ${candidate.candidate}');
-      };
+      _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {};
       _peerConnection?.onIceConnectionState = (RTCIceConnectionState? state) {
         print('ICE connection state: $state');
       };
@@ -37,7 +35,7 @@ class RTCHelper {
               'Signaling state: $signalingState'); // Replace this with the logging framework
         }
 
-        print('Set local description with offer: ${offer.sdp}');
+        print('Set local description with offer:');
       } else {
         print('Offer is null');
       }
@@ -56,7 +54,7 @@ class RTCHelper {
     try {
       _offer = await _peerConnection!.createOffer();
       await _peerConnection!.setLocalDescription(_offer!);
-      print('Created offer: ${_offer?.sdp}');
+      print('Created offer:');
       return _offer;
     } catch (e) {
       print('Failed to create offer: $e');
